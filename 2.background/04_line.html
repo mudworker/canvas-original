@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+    }
+
+    html,
+    body {
+        height: 100%;
+        width: 100%;
+    }
+
+    #canvas {
+        background-image: url("images/bg.jpg");
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: 100% 100%;
+    }
+</style>
+
+<body>
+    <canvas id="canvas"></canvas>
+</body>
+<script>
+    /** @type {HTMLCanvasElement} */
+    let canvas = document.getElementById("canvas")
+    let ctx = canvas.getContext("2d")
+
+    //获取当前窗口的宽高
+    let aw = document.body.clientWidth
+    let ah = document.body.clientHeight
+    //设置画布大小
+    canvas.width = aw
+    canvas.height = ah
+
+    //设置填充颜色
+    ctx.fillStyle = "white"
+    //设置描边颜色
+    ctx.strokeStyle = "white"
+    //改变线宽
+    ctx.lineWidth = 2
+
+    //创建一个星星类
+    function Star(ctx, x, y, r) {
+        this.ctx = ctx
+        this.x = x
+        this.y = y
+        this.r = r
+        this.speedX = Math.random() * 3 * Math.pow(-1, Math.round(Math.random()))
+        this.speedY = Math.random() * 3 * Math.pow(-1, Math.round(Math.random()))
+    }
+
+    //定义一个渲染星星的方法
+    Star.prototype.renderStar = function () {
+        this.ctx.beginPath()
+        this.ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2)
+        this.ctx.fill()
+        this.ctx.closePath()
+    }
+    //定义一个星星移动的方法
+    Star.prototype.move = function () {
+        this.x -= this.speedX
+        this.y -= this.speedY
+    }
+
+    //清屏方法
+    Star.prototype.clear = function () {
+        this.ctx.clearRect(0, 0, aw, ah)
+    }
+
+    //定义一个检测边界的方法
+    Star.prototype.check = function () {
+        if (this.x <= 0 || this.x >= aw) {
+            this.speedX *= -1
+        }
+        if (this.y <= 0 || this.y >= ah) {
+            this.speedY *= -1
+        }
+    }
+
+    //创建一个星星
+    let star = new Star(ctx, Math.random() * aw, Math.random() * ah, 2)
+
+    //创建一个数组来存储多个星星
+    let starArr = []
+
+    //创建100个星星
+    for (let i = 0; i < 100; i++) {
+        starArr.push(new Star(ctx, Math.random() * aw, Math.random() * ah, 2))
+    }
+
+    //定时器，星星的移动
+    setInterval(function () {
+        //清屏
+        star.clear()
+
+        starArr.forEach((val, idx, arr) => {
+            //移动
+            val.move()
+            //检测边界
+            val.check()
+            //渲染
+            val.renderStar()
+        })
+
+        //连线
+        starArr.forEach((val, idx, arr) => {
+            for (let i = idx + 1; i < starArr.length; i++) {
+                if (Math.abs(val.x - starArr[i].x) < 50
+                    && Math.abs(val.y - starArr[i].y) < 50) {
+                    drawLine(val.x, val.y, starArr[i].x, starArr[i].y)
+                }
+            }
+        })
+    }, 30)
+
+    //绘制线段的函数
+    function drawLine(startX, startY, endX, endY) {
+        ctx.beginPath()
+        ctx.moveTo(startX, startY)
+        ctx.lineTo(endX, endY)
+        ctx.stroke()
+        ctx.closePath()
+    }
+
+    //窗口改变事件
+    window.onresize = function () {
+        aw = document.body.clientWidth
+        ah = document.body.clientHeight
+        canvas.width = aw
+        canvas.height = ah
+        ctx.fillStyle = "white"
+    }
+</script>
+
+</html>

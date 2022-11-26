@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+    }
+
+    html,
+    body {
+        width: 100%;
+        height: 100%;
+    }
+</style>
+
+<body>
+    <canvas id="canvas"></canvas>
+</body>
+<script>
+    /** @type {HTMLCanvasElement} */
+    let canvas, ctx
+    let aw = document.body.clientWidth
+    let ah = document.body.clientHeight
+    let balls = []
+    let colorList = ['#3A5BCD', '#EF2B36', '#FFC636', '#02A817']
+    let mousePos = {}
+    let radius = 10//小球半径
+    let gameRunning = false
+    //帧率配置
+    let fps = 60
+    let fpsInterval = 1000 / fps
+    let fpsLast
+
+    function setScreen() {
+        canvas.width = aw
+        canvas.height = ah
+    }
+    function setFps() {
+        fpsLast = new Date().getTime()
+    }
+
+    function render() {
+        frameId = window.requestAnimationFrame(render)
+        let now = new Date().getTime()
+        let elapsed = now - fpsLast;
+        if (elapsed > fpsInterval) {
+            fpsLast = now - (elapsed % fpsInterval);
+            if (gameRunning) {
+                main(elapsed)
+            }
+        }
+    }
+    startGame()
+    function startGame() {
+        //参数初始化
+        canvas = document.getElementById('canvas')
+        setScreen()
+        setFps()
+        ctx = canvas.getContext('2d')
+        //初始化坐标
+        mousePos = { x: 9999, y: 9999 }
+        //初始化球
+        initBalls()
+        //初始化事件
+        initEvent()
+
+        gameRunning = true
+        render()
+
+    }
+
+    function main(elapsed) {
+        //清空画布
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (let i = 0; i < balls.length; i++) {
+            let ball = balls[i]
+            //更新小球坐标
+            ball.update(elapsed);
+            //开始渲染
+            ball.draw()
+        }
+    }
+
+    function Ball(x, y, color) {
+        this.x = x;
+        this.y = y;
+        //初始速度
+        this.vx = 0;
+        this.vy = 0;
+        //原始坐标
+        this.origX = x;
+        this.origY = y;
+        this.color = color;
+        this.r = radius;
+        this.draw = () => {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI, false);
+            ctx.fillStyle = this.color;
+            ctx.fill();
+        }
+        this.update = (elapsed) => {
+            let collisionDamper = 0.3//碰撞调节器
+            let floorFriction = 0.0005 * elapsed//地板摩擦系数
+            let mouseForceMultiplier = 1 * elapsed//鼠标力系数
+            let restoreForce = 0.002 * elapsed//恢复力系数
+            //基于速度求出当前小球坐标
+            this.x += this.vx
+            this.y += this.vy
+            //*恢复力
+            if (this.x > this.origX) {
+                this.vx -= restoreForce
+            } else {
+                this.vx += restoreForce
+            }
+            if (this.y > this.origY) {
+                this.vy -= restoreForce
+            } else {
+                this.vy += restoreForce
+            }
+
+            //*鼠标施加力
+            //鼠标与小球的距离差
+            let distX = this.x - mousePos.x
+            let distY = this.y - mousePos.y
+            let radius = Math.sqrt(Math.pow(distX, 2) + Math.pow(distY, 2))
+
+            let totalDist = Math.abs(distX) + Math.abs(distY)
+
+            let forceX = (Math.abs(distX) / totalDist) * (1 / radius) * mouseForceMultiplier
+            let forceY = (Math.abs(distY) / totalDist) * (1 / radius) * mouseForceMultiplier
+
+            if (distX > 0) {//鼠标在球的左边，球被排斥往右
+                this.vx += forceX
+            } else {
+                this.vx -= forceX
+            }
+            if (distY > 0) {//鼠标在球的上边，球被排斥往下
+                this.vy += forceY
+            } else {
+                this.vy -= forceY
+            }
+
+            //*地板摩擦力
+            if (this.vx > 0) {
+                this.vx -= floorFriction
+            } else if (this.vx < 0) {
+                this.vx += floorFriction
+            }
+            if (this.vy > 0) {
+                this.vy -= floorFriction
+            } else if (this.vy < 0) {
+                this.vy += floorFriction
+            }
+
+            //撞到地板
+            if (this.y > (ah - this.r)) {
+                this.y = ah - this.r - 2
+                this.vy *= -1
+                this.vy *= (1 - collisionDamper)
+            }
+
+            //撞到天花板
+            if (this.y < this.r) {
+                this.y = this.r + 2
+                this.vy *= -1
+                this.vy *= (1 - collisionDamper)
+            }
+
+            //撞到右边界
+            if (this.x > (aw - this.xr)) {
+                this.x = aw - this.r - 2
+                this.vx *= -1
+                this.vx *= (1 - collisionDamper)
+            }
+
+            //撞到左边界
+            if (this.x < this.r) {
+                this.x = this.r + 2
+                this.vx *= -1
+                this.vx *= (1 - collisionDamper)
+            }
+        }
+    }
+
+    function initBalls() {
+        balls = []
+        // G
+        balls.push(new Ball(173, 63, colorList[0]));
+        balls.push(new Ball(158, 53, colorList[0]));
+        balls.push(new Ball(143, 52, colorList[0]));
+        balls.push(new Ball(130, 53, colorList[0]));
+        balls.push(new Ball(117, 58, colorList[0]));
+        balls.push(new Ball(110, 70, colorList[0]));
+        balls.push(new Ball(102, 82, colorList[0]));
+        balls.push(new Ball(104, 96, colorList[0]));
+        balls.push(new Ball(105, 107, colorList[0]));
+        balls.push(new Ball(110, 120, colorList[0]));
+        balls.push(new Ball(124, 130, colorList[0]));
+        balls.push(new Ball(139, 136, colorList[0]));
+        balls.push(new Ball(152, 136, colorList[0]));
+        balls.push(new Ball(166, 136, colorList[0]));
+        balls.push(new Ball(174, 127, colorList[0]));
+        balls.push(new Ball(179, 110, colorList[0]));
+        balls.push(new Ball(166, 109, colorList[0]));
+        balls.push(new Ball(156, 110, colorList[0]));
+
+        // O
+        balls.push(new Ball(210, 81, colorList[1]));
+        balls.push(new Ball(197, 91, colorList[1]));
+        balls.push(new Ball(196, 103, colorList[1]));
+        balls.push(new Ball(200, 116, colorList[1]));
+        balls.push(new Ball(209, 127, colorList[1]));
+        balls.push(new Ball(223, 130, colorList[1]));
+        balls.push(new Ball(237, 127, colorList[1]));
+        balls.push(new Ball(244, 114, colorList[1]));
+        balls.push(new Ball(242, 98, colorList[1]));
+        balls.push(new Ball(237, 86, colorList[1]));
+        balls.push(new Ball(225, 81, colorList[1]));
+
+        // O
+        var oOffset = 67;
+        balls.push(new Ball(oOffset + 210, 81, colorList[2]));
+        balls.push(new Ball(oOffset + 197, 91, colorList[2]));
+        balls.push(new Ball(oOffset + 196, 103, colorList[2]));
+        balls.push(new Ball(oOffset + 200, 116, colorList[2]));
+        balls.push(new Ball(oOffset + 209, 127, colorList[2]));
+        balls.push(new Ball(oOffset + 223, 130, colorList[2]));
+        balls.push(new Ball(oOffset + 237, 127, colorList[2]));
+        balls.push(new Ball(oOffset + 244, 114, colorList[2]));
+        balls.push(new Ball(oOffset + 242, 98, colorList[2]));
+        balls.push(new Ball(oOffset + 237, 86, colorList[2]));
+        balls.push(new Ball(oOffset + 225, 81, colorList[2]));
+
+        // G
+        balls.push(new Ball(370, 80, colorList[0]));
+        balls.push(new Ball(358, 79, colorList[0]));
+        balls.push(new Ball(346, 79, colorList[0]));
+        balls.push(new Ball(335, 84, colorList[0]));
+        balls.push(new Ball(330, 98, colorList[0]));
+        balls.push(new Ball(334, 111, colorList[0]));
+        balls.push(new Ball(348, 116, colorList[0]));
+        balls.push(new Ball(362, 109, colorList[0]));
+        balls.push(new Ball(362, 94, colorList[0]));
+        balls.push(new Ball(355, 128, colorList[0]));
+        balls.push(new Ball(340, 135, colorList[0]));
+        balls.push(new Ball(327, 142, colorList[0]));
+        balls.push(new Ball(325, 155, colorList[0]));
+        balls.push(new Ball(339, 165, colorList[0]));
+        balls.push(new Ball(352, 166, colorList[0]));
+        balls.push(new Ball(367, 161, colorList[0]));
+        balls.push(new Ball(371, 149, colorList[0]));
+        balls.push(new Ball(366, 137, colorList[0]));
+
+        // L
+        balls.push(new Ball(394, 49, colorList[3]));
+        balls.push(new Ball(381, 50, colorList[3]));
+        balls.push(new Ball(391, 61, colorList[3]));
+        balls.push(new Ball(390, 73, colorList[3]));
+        balls.push(new Ball(392, 89, colorList[3]));
+        balls.push(new Ball(390, 105, colorList[3]));
+        balls.push(new Ball(390, 118, colorList[3]));
+        balls.push(new Ball(388, 128, colorList[3]));
+        balls.push(new Ball(400, 128, colorList[3]));
+
+        // E
+        balls.push(new Ball(426, 101, colorList[1]));
+        balls.push(new Ball(436, 98, colorList[1]));
+        balls.push(new Ball(451, 95, colorList[1]));
+        balls.push(new Ball(449, 83, colorList[1]));
+        balls.push(new Ball(443, 78, colorList[1]));
+        balls.push(new Ball(430, 77, colorList[1]));
+        balls.push(new Ball(418, 82, colorList[1]));
+        balls.push(new Ball(414, 93, colorList[1]));
+        balls.push(new Ball(412, 108, colorList[1]));
+        balls.push(new Ball(420, 120, colorList[1]));
+        balls.push(new Ball(430, 127, colorList[1]));
+        balls.push(new Ball(442, 130, colorList[1]));
+        balls.push(new Ball(450, 125, colorList[1]));
+    }
+    //获取鼠标坐标
+    function getMousePos(evt) {
+        let obj = canvas
+        let top = 0
+        let left = 0
+        while (obj.tagName != 'BODY') {
+            top += obj.offsetTop
+            left += obj.offsetLeft
+            obj = obj.offsetParent
+        }
+
+        mousePos.x = evt.clientX - left + window.pageXOffset
+        mousePos.y = evt.clientY - top + window.pageYOffset
+    }
+
+    function initEvent() {
+        canvas.addEventListener('mousemove', (evt) => {
+            getMousePos(evt)
+        })
+        canvas.addEventListener('mouseout', () => {
+            mousePos.x = 9999
+            mousePos.y = 9999
+        })
+    }
+</script>
+
+</html>

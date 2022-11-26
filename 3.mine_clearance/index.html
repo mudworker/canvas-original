@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <canvas id="canvas" width="800" height="800"></canvas>
+</body>
+<script>
+    /**@type{HTMLCanvasElement}*/
+    let canvas = document.getElementById('canvas')
+    let ctx = canvas.getContext('2d')
+
+    /**代码化处理
+     * 0-0 1-0 2-0 3-0 4-0
+     * 0-1 1-1 2-1 3-1 4-1
+     * 0-2 1-2 2-2 3-2 4-2
+     * 0-3 1-3 2-3 3-3 4-3
+     * 0-4 1-4 2-4 3-4 4-4
+     * */
+
+    //初始化游戏信息变量
+    let level = [9, 9, 10]    //[行，列，雷数]
+    let g_arr = []          //x-y [0-0,1-0,2-0,3-0,4-0,0-1,1-1,...]
+    let g_obj = {}          //g[2-3] = {mark:0,open:0}  //mark:-1是雷，0-8是数字块；open:0未打开，1已打开，-1标注为雷块，2疑似雷块
+    let g_color = { block: '#369', open: '#ddd', mine: '#69d', heighlight: '#89f' }
+    let block_w = 50, block_r = 8, block_m = 2//width, radius, margin
+    let mine_arr = []
+    let count = 0
+
+    for (let i = 0; i < level[0]; i++) {
+        for (let j = 0; j < level[1]; j++) {
+            let xy = j + '-' + i
+            g_arr.push(xy)
+            g_obj[xy] = { mark: 0, open: 0 }
+            //初始化布局：绘制游戏块
+            drawBlock(xy, g_color.block)
+        }
+    }
+    setMian()
+    //随机布雷
+    function setMian() {
+        //随机排序
+        let random_arr = g_arr.sort(() => { return Math.random() - 0.5 })
+        //取前十个
+        mine_arr = random_arr.slice(0, level[2])
+        mine_arr.forEach(n => {
+            g_obj[n].mark = -1
+            let around = getAround(n)
+            around.forEach(xy => {
+                if (g_obj[xy].mark != -1) {
+                    return g_obj[xy].mark++
+                }
+            })
+        })
+    }
+
+    //显示文本
+    function markText(xy, txt) {
+        let [x, y] = xy.split('-').map(n => n * block_w)
+        ctx.save()
+        ctx.font = '15px'
+        ctx.fillStyle = '#fff'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(txt, x + block_w / 2, y + block_w / 2)
+        ctx.restore()
+    }
+
+    //获取周边
+    function getAround(xy) {
+        let [x, y] = xy.split('-').map(n => n * 1)//转下数字
+        let around = []
+        //雷周围的三行三列
+        for (let i = -1; i <= 1; i++) {
+            for (let j = -1; j <= 1; j++) {
+                let id = `${x + j}-${y + i}`
+                if (g_arr.indexOf(id) > -1 && id !== xy) {
+                    around.push(id)
+                }
+            }
+        }
+        return around
+    }
+
+
+    //绘制圆角矩形
+    function drawBlock(xy, color) {
+        let [x, y] = xy.split('-').map(n => n * block_w)
+        ctx.save()
+        ctx.beginPath()
+        ctx.moveTo(x, y + block_r)
+        ctx.arcTo(x, y + block_w - block_m, x + block_w - block_m, y + block_w - block_m, block_r)
+        ctx.arcTo(x + block_w - block_m, y + block_w - block_m, x + block_w - block_m, y, block_r)
+        ctx.arcTo(x + block_w - block_m, y, x, y, block_r)
+        ctx.arcTo(x, y, x, y + block_w - block_m, block_r)
+        ctx.fillStyle = color
+        ctx.fill()
+        ctx.restore()
+    }
+
+
+    // showInfo()
+    //辅助显示信息（开发时使用）
+    function showInfo() {
+        g_arr.forEach(n => {
+            if (g_obj[n].mark === -1) {
+                drawBlock(n, g_color.mine)
+            } else {
+                markText(n, g_obj[n].mark)
+            }
+        })
+    }
+
+    //鼠标事件
+    canvas.addEventListener('click', openBlock)
+    canvas.addEventListener('contextmenu', markMine)
+    function openBlock(evt) {
+        //offsetX\offsetY获取基于canvas的相对坐标，
+        let x = ~~(evt.offsetX / block_w)
+        let y = ~~(evt.offsetY / block_w)
+        let xy = x + '-' + y
+        //打开游戏块：更新游戏数据，更新页面
+        g_obj[xy].open = 1
+        drawBlock(xy, g_color.open)
+        markText(xy, g_obj[xy].mark)
+        if (g_obj[xy].mark === 0) {
+            //递归清零
+            openZero(xy)
+        } else if (g_obj[xy].mark === -1) {
+            //触雷，游戏结束
+            drawBlock(xy, g_color.mine)
+            markText(xy, "boom")
+            checkOver()
+        }
+    }
+    //递归清零
+    function openZero(xy) {
+        let around = getAround(xy)
+        around.forEach(n => {
+            if (g_obj[n].open === 0) {
+                g_obj[n].open = 1
+                drawBlock(n, g_color.open)
+                markText(n, g_obj[n].mark)
+                //递归
+                if (g_obj[n].mark === 0) {
+                    openZero(n)
+                }
+            }
+        })
+    }
+
+    function markMine(evt) {
+        //标注雷块：对位打开的快，标注雷块-1，标注疑似雷块2，取消标注0
+        evt.preventDefault()
+        let x = ~~(evt.offsetX / block_w)
+        let y = ~~(evt.offsetY / block_w)
+        let xy = x + '-' + y
+        //更新数据，更新页面
+        if (g_obj[xy].open === 0) {
+            g_obj[xy].open = -1
+            drawBlock(xy, g_color.mine)
+            markText(xy, '☆')
+            count++
+            //判断游戏是否结束
+            if (count == level[2]) {
+                checkOver()
+            }
+        } else if (g_obj[xy].open === -1) {
+            g_obj[xy].open = 2
+            drawBlock(xy, g_color.mine)
+            markText(xt, '?')
+            count--
+        } else if (g_obj[xy].open === 2) {
+            g_obj[xy].open = 0
+            drawBlock(xy, g_color.block)
+        }
+    }
+
+    function checkOver() {
+        let win = mine_arr.every(n => g_obj[n].mark === g_obj[n].open)
+        setTimeout(() => {
+            alert(win ? '挑战成功！' : '挑战失败！')
+        }, 1000)
+    }
+
+</script>
+
+</html>

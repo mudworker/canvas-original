@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+
+</body>
+<script>
+    new move(200, 1);
+    window.onresize = function () {
+        move(200, 1);
+    }
+    let move = function (number, speed) {
+
+        let canvas = document.getElementById('myCanvas');
+        let ctx = canvas.getContext('2d');
+        let w = canvas.width = window.innerWidth;
+        let h = canvas.height = window.innerHeight;
+        let circleArr = [];
+        let _speed = speed || 1;
+        let _number = number || 500;
+
+        let circle = function (x, y, z, opt) {
+            this.x = x;
+            this.y = y;
+            this.r = z;
+            this.opt = opt;
+            this.tag = 0;
+            //this.speedY = 0.0001||1.2-this.r - Math.random();
+            this.speedX = 1.2 - this.r - Math.random() / 10 * _speed;
+        }
+        circle.prototype = {
+            drawCicle: function () {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.r, 0, 360);
+                ctx.closePath();
+                ctx.fillStyle = 'rgba(204, 204, 204, ' + this.opt + ')';
+                ctx.fill();
+            },
+            changeOpt: function () {
+                let a, b;
+                if (this.r == 1.5) { a = 0.9; b = 0.1 };
+                if (this.r == 1) { a = 0.8; b = 0.2 };
+                if (this.r == 0.8) { a = 0.7; b = 0.3 };
+                if (this.opt > a) {
+                    this.tag = 1;
+                } else {
+                    if (this.opt < b) {
+                        this.tag = 0;
+                    }
+                }
+                if (this.tag == 0) {
+                    this.opt = this.opt + 0.0080;
+                } else {
+                    this.opt = this.opt - 0.0080;
+                }
+            },
+            move: function () {
+                this.y = this.y + 0;
+                this.x > w ? (this.x = 0) : this.x = this.x + this.speedX;
+            }
+        };
+
+        let moreCircle = function () {
+            for (let i = 0; i < _number; i++) {
+                circleArr.push(new circle(Math.random() * w, Math.random() * h, 1.5, Math.random()));
+                circleArr.push(new circle(Math.random() * w, Math.random() * h, 1, Math.random()));
+                circleArr.push(new circle(Math.random() * w, Math.random() * h, 0.8, Math.random()));
+            }
+        }
+
+        let draw = function () {
+            ctx.clearRect(0, 0, w, h);
+            for (let i = 0; i < _number * 3; i++) {
+                circleArr[i].move();
+                circleArr[i].changeOpt();
+                circleArr[i].drawCicle();
+            }
+        }
+
+        let init = function () {
+            moreCircle();
+            let cycleCirle = function () {
+                requestAnimationFrame(function () {
+                    draw();
+                    cycleCirle();
+                });
+            }
+            cycleCirle();
+        }
+
+        init();
+    };
+
+</script>
+
+</html>
